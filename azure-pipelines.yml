@@ -18,7 +18,8 @@ variables:
   helmChartPath: '$(Build.SourcesDirectory)/spa-react-netcore-redis/voting/voting/k8s/Chart'
   valueFilePath: '$(Build.SourcesDirectory)/spa-react-netcore-redis/voting/voting/k8s/Chart/values.yaml'
   aksServiceConnection: 'd096e26f-577c-4fe9-9ec0-56c53100cec5'
-  tag: 'jm-$(Build.BuildId)'
+  tag: '$(Build.BuildId)'
+  latestTag: '$(Build.SourceBranchName)-latest'
   releaseName: 'demo'
   
   # Agent VM image name
@@ -43,6 +44,7 @@ stages:
         buildContext: $(buildContextPath)
         tags: |
           $(tag)
+          $(latestTag)
 
 - stage: Deploy
   displayName: Deploy to Cluster
@@ -54,12 +56,14 @@ stages:
     steps:
 
     - task: HelmInstaller@1
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
       displayName: Helm installer
       inputs: 
         helmVersionToInstall: 3.0.2
 
     - task: HelmDeploy@0
-      displayName: Helm install
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+      displayName: Deploy to Demo
       inputs:
         connectionType: Kubernetes Service Connection
         kubernetesServiceEndpoint: $(aksServiceConnection)
@@ -71,11 +75,3 @@ stages:
         releaseName: $(releaseName)
         install: true
         failOnStderr: false
-
-    - task: HelmDeploy@0
-      displayName: Helm list
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: $(aksServiceConnection)
-        command: ls
-        arguments: --all-namespaces
